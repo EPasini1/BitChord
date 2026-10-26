@@ -4,17 +4,42 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to check, including synchronization branches created by GITHUB_TOKEN.
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 concurrency:
   group: check-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  fork-sync-tests:
+    name: Fork synchronization safeguards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: node --test .github/scripts/sync-upstream.test.cjs
+
   desktop-linux:
     name: Desktop · Linux
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -57,6 +82,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -75,11 +102,13 @@ jobs:
       - name: CMake version
         run: cmake --version
 
+      - uses: ./.github/actions/build-windows-native
+
       - name: Tests
-        run: .\gradlew.bat :shared:jvmTest :desktopUi:jvmTest :desktopApp:test
+        run: .\gradlew.bat :shared:jvmTest :desktopUi:jvmTest :desktopApp:test -x :desktopApp:buildAnalysisNative -x :desktopApp:buildWindowNative
 
       - name: Build the distributable
-        run: .\gradlew.bat :desktopApp:createDistributable
+        run: .\gradlew.bat :desktopApp:createDistributable -x :desktopApp:buildAnalysisNative -x :desktopApp:buildWindowNative
 
       - name: The analyser is in the jar
         shell: bash
@@ -104,6 +133,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -145,6 +176,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -188,6 +221,8 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - uses: actions/setup-go@v5
         with:

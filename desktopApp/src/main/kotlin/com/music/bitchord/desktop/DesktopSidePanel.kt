@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
@@ -30,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,7 +41,7 @@ import androidx.compose.ui.unit.sp
 internal enum class DesktopSidePanel { LYRICS, QUEUE }
 
 /**
- * Apple Music's right-hand sidebar: the lyrics or the queue in a column beside the page, while the
+ * Lyrics or queue in a separate surface beside the page, while the
  * player itself stays closed. The page narrows to make room rather than being covered, so whatever
  * was being browsed stays usable next to the words.
  */
@@ -59,8 +61,7 @@ internal fun DesktopSidePanelColumn(
         exit = shrinkHorizontally(tween(SLIDE_MS, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Start) +
             fadeOut(tween(SLIDE_MS / 2)),
     ) {
-        Row(Modifier.width(SIDE_PANEL_WIDTH).fillMaxHeight()) {
-            Box(Modifier.width(1.dp).fillMaxHeight().background(DesktopDivider))
+        Row(Modifier.width(SIDE_PANEL_WIDTH).fillMaxHeight().clip(RoundedCornerShape(8.dp)).background(DesktopBackground)) {
             Crossfade(
                 targetState = shown ?: return@Row,
                 animationSpec = tween(CROSSFADE_MS),
@@ -117,7 +118,7 @@ internal fun DesktopSidePanelColumn(
     }
 }
 
-private val SIDE_PANEL_WIDTH = 360.dp
+private val SIDE_PANEL_WIDTH = 320.dp
 private val HEADER_HEIGHT = 46.dp
 private val QUEUE_HEADER_HEIGHT = 30.dp
 private const val SLIDE_MS = 260

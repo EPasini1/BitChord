@@ -109,7 +109,7 @@ import androidx.compose.foundation.border
  * edge, which every other page now shares, so a track row, a card or a
  * heading starts at the same place whichever page it is on.
  */
-val PAGE_GUTTER = 16.dp
+val PAGE_GUTTER = 24.dp
 
 /**
  * The inset the floating chrome sits at: the mini player, the tab bar and the
@@ -155,7 +155,7 @@ val FLOATING_BAR_MAX_WIDTH = 440.dp
  * Sized so a phone-width row shows two cards whole with the edge of a third
  * showing: enough to say the row scrolls without a card being half a card.
  */
-val SHELF_CARD_WIDTH = 150.dp
+val SHELF_CARD_WIDTH = 180.dp
 
 /** Share of the row a lead-shelf card takes, so the next one peeks in past it. */
 private const val HERO_CARD_FRACTION = 0.70f

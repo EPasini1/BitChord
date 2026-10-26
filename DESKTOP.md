@@ -6,6 +6,115 @@ the supported Compose Multiplatform desktop model.
 
 The desktop target uses Java 21.
 
+## Desktop interface
+
+The desktop interface uses a Spotify-inspired layout with BitChord's original
+dark-gray surfaces, red/pink brand accent, and playback features. The header uses
+the original red-gradient app icon; active navigation, primary playback controls,
+filters, and sliders share the red/pink accent used for currently-playing tracks.
+
+- A global search field and account switcher in the top bar.
+- A left sidebar for navigation, library, playlists, downloads, and local music.
+- A fixed bottom player with artwork, likes, transport controls, seeking, volume,
+  audio output, lyrics, and queue.
+- Dark content panels and hover-to-play shelf cards in BitChord's own colors.
+
+Below 980 dp wide, the sidebar becomes a compact navigation row above the player.
+The search field and player remain available, and page content scrolls above them
+instead of underneath them. The appearance settings, including system backdrops
+and the volume-slider visibility setting, remain available.
+
+This layout is isolated to `desktopApp` and `desktopUi`; Android, TV, and web
+interfaces are unchanged.
+
+### Fork updates
+
+Desktop update checks use releases from `EPasini1/BitChord`, not the upstream
+repository, so updating does not switch back to the upstream interface. If the
+fork has no published release, no update prompt is shown. Update-check failures
+are recorded in the desktop log, and update dialogs use the desktop's dark theme.
+
+`DesktopUpdateCheckerTest` checks fork-only requests and download links, missing
+releases, version ordering, network failures, timeouts, and cancellation without
+contacting GitHub:
+
+```bat
+gradlew.bat :desktopApp:test --tests "com.music.bitchord.desktop.DesktopUpdateCheckerTest"
+```
+
+### Keeping the fork based on upstream main
+
+Keep `origin` pointing to `EPasini1/BitChord` and `upstream` pointing to
+`kushagrasinghx/BitChord`. Keep the custom desktop changes committed in the
+fork's published `main`; do not replace that branch with upstream or install upstream
+binaries to update this interface.
+
+The [Sync upstream main workflow](.github/workflows/sync-upstream.yml) runs
+weekly, or manually from Actions. It merges upstream's `main` into
+`automation/sync-upstream-main` and opens or updates a PR targeting the fork's
+`main`. It never force-pushes or directly updates `main`. Conflicting merges
+abort and fail the run with the affected files listed; they must be resolved
+without dropping the custom UI.
+
+The workflow directly calls [Check](.github/workflows/check.yml) with the
+synchronized commit SHA, including desktop UI and updater regression tests.
+This is explicit because PRs created with `GITHUB_TOKEN` do not trigger other
+workflows automatically. The validation does not inherit repository secrets.
+An aggregate `Upstream sync / validation` commit status is posted on the PR's
+exact head SHA; the scheduled workflow's own SHA is not the PR commit.
+This status can be required in the fork's branch-protection rules.
+Use **Create a merge commit** for sync PRs, not squash/rebase, so Git retains
+the upstream ancestry.
+
+To activate this on GitHub, first publish the custom desktop code and these
+workflow files in the fork's `main`.
+Sync and release workflows refuse a baseline missing the custom shell or its regression tests.
+Enable Actions in the fork and, under
+Settings > Actions > General > Workflow permissions, allow GitHub Actions to
+create pull requests. Add the repository secret `UPSTREAM_SYNC_TOKEN`: a
+fine-grained PAT restricted to this fork with **Contents: write** and
+**Workflows: write**. The latter is needed when upstream changes workflow
+files; `GITHUB_TOKEN` alone cannot reliably publish those changes. The PAT is
+used for the synchronization's Git operations, while the PR uses `GITHUB_TOKEN`. No token
+belongs in a committed file. A workflow that exists only locally is not scheduled.
+Review and merge successful sync PRs, then run the existing Release workflow
+with a new version or push a version tag in this fork. Increment
+`desktopVersionCode` before publishing a new Windows installer so Windows
+recognizes it as an upgrade. The desktop updater continues to download only
+this fork's published releases, not arbitrary upstream commits.
+
+For a clean local checkout matching the fork's published `main`, the same synchronization logic can be inspected
+or run manually. It refuses tracked or untracked pending changes and restores
+the original checked-out branch after preparing the sync branch:
+
+```bat
+node .github\scripts\sync-upstream.cjs --check
+node .github\scripts\sync-upstream.cjs --apply
+node --test .github\scripts\sync-upstream.test.cjs
+```
+
+Add `--push` to `--apply` only to publish the synchronization branch.
+Neither mode creates a release or changes the installed application.
+Windows CI builds the native libraries with MSVC and the Windows SDK before
+running Gradle; skipping the Gradle native-build tasks there does not omit
+the native libraries from the packages.
+
+### UI regression tests
+
+`DesktopShellTest` renders the actual Compose components offscreen, checks
+contrast and normal/compact layouts, and exercises search, transport controls,
+seeking, muting, hover-to-play, and update-dialog actions and release-note
+formatting without signing in or streaming music.
+
+```bat
+gradlew.bat :desktopApp:test --tests "com.music.bitchord.desktop.DesktopShellTest"
+```
+
+Rendered previews use test data with placeholder artwork and are written to
+`desktopApp/build/reports/desktop-ui`.
+
+## Running from source
+
 On macOS (Apple Silicon or Intel), run it with a Java 21 JDK available in your environment:
 
 ```bash
@@ -27,8 +136,12 @@ running `gradlew.bat :desktopApp:run`.
 
 ## Installing a release
 
-Every download on the [releases page](https://github.com/kushagrasinghx/BitChord/releases) carries its own Java
-runtime, the FFmpeg and ONNX natives, the Automix analyser and its models.
+Use this fork's [releases page](https://github.com/EPasini1/BitChord/releases)
+when a desktop release is available, or build an installer as described below.
+Upstream installers do not include this fork's customized desktop interface.
+
+Release packages carry their own Java runtime, the FFmpeg and ONNX natives,
+the Automix analyser and its models.
 Nothing else has to be installed first — no JDK, no codec pack.
 
 | Platform | Download | Notes |

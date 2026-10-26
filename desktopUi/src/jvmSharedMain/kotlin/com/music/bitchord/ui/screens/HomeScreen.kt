@@ -7,10 +7,12 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.DrawableResource
 import androidx.compose.foundation.Image
 import org.jetbrains.compose.resources.stringResource
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import com.music.bitchord.ui.components.longPressMenuClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,6 +61,7 @@ import androidx.compose.material.icons.rounded.Cached
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Storage
 import com.music.bitchord.ui.icons.BitChordIcons
 import coil3.compose.AsyncImage
@@ -90,9 +93,6 @@ import com.music.bitchord.ui.components.trackColumnWidth
 import com.music.bitchord.ui.player.MeshGradientBackground
 import com.music.bitchord.ui.player.MeshPalette
 
-/** How far the Listen now heading and feed sit above the shared top inset. */
-private val HOME_TITLE_LIFT = 28.dp
-
 private const val RECENTS_TITLE = "Recents"
 private const val RECENT_TRACKS_PER_COLUMN = 4
 
@@ -119,7 +119,7 @@ fun HomeScreen(
     pullState: PullToRefreshState,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues,
-    /** The page's heading, or null for none — the desktop's pages carry no heading. */
+    /** The page's heading, or null when the host already supplies one. */
     title: String?,
     signedIn: Boolean = true,
     onSignIn: (() -> Unit)? = null,
@@ -154,16 +154,7 @@ fun HomeScreen(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            // The heading sits higher than the other tabs' first row: pull the
-            // whole feed up by [HOME_TITLE_LIFT] with it.
-            contentPadding = if (title != null) {
-                PaddingValues(
-                    top = (contentPadding.calculateTopPadding() - HOME_TITLE_LIFT).coerceAtLeast(0.dp),
-                    bottom = contentPadding.calculateBottomPadding(),
-                )
-            } else {
-                contentPadding
-            },
+            contentPadding = contentPadding,
         ) {
             if (title != null) {
                 item { HomeTitle(title) }
@@ -488,41 +479,15 @@ fun CompactTrackRow(
     }
 }
 
-/**
- * Listen now's large heading, with the wordmark stacked above it.
- *
- * Only the home tab carries it — the top bar no longer shows the logo, so this
- * is where the app's mark lives. Its height is taken from the heading's own
- * font size rather than a fixed dp, so the two keep their proportion under the
- * system font scale.
- */
 @Composable
 private fun HomeTitle(title: String, modifier: Modifier = Modifier) {
-    val style = MaterialTheme.typography.displayLarge
-    val logoHeight = with(LocalDensity.current) { (style.fontSize * LOGO_TO_FONT).toDp() }
-    Column(modifier = modifier.padding(horizontal = PAGE_GUTTER, vertical = 8.dp)) {
-        Icon(
-            painter = painterResource(Res.drawable.ic_logo),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier
-                .padding(bottom = 14.dp)
-                .height(logoHeight)
-                .aspectRatio(LOGO_ASPECT),
-        )
-        Text(
-            text = title,
-            style = style,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-    }
+    Text(
+        text = title,
+        style = MaterialTheme.typography.headlineLarge,
+        color = MaterialTheme.colorScheme.onBackground,
+        modifier = modifier.padding(start = PAGE_GUTTER, end = PAGE_GUTTER, top = 24.dp, bottom = 16.dp),
+    )
 }
-
-/** The wordmark's height against the heading's font size. */
-private const val LOGO_TO_FONT = 0.9f
-
-/** ic_logo's viewport, 730 x 484. */
-private const val LOGO_ASPECT = 730f / 484f
 
 /**
  * Shared by the home feed, Explore and Library so headings line up across tabs.
@@ -979,71 +944,95 @@ internal fun ShelfCard(
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val hovered by interaction.collectIsHoveredAsState()
     Column(
         modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (hovered) Color.White.copy(alpha = 0.07f) else Color.Transparent)
+            .hoverable(interaction)
             .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
-            .contextClick(onLongPress),
+            .contextClick(onLongPress)
+            .padding(10.dp),
     ) {
-        when (item.browseId) {
-            "local:downloads" -> {
-                val palette = remember { MeshPalette(listOf(Color(0xFF1E3C72), Color(0xFF2A5298))) }
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    MeshGradientBackground(
-                        palette = palette,
-                        trackKey = "local:downloads",
-                        continuous = true,
-                        blurRadius = 24.dp,
-                    )
-                    Icon(
-                        imageVector = BitChordIcons.Download,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(40.dp),
-                    )
+        Box {
+            when (item.browseId) {
+                "local:downloads" -> {
+                    val palette = remember { MeshPalette(listOf(Color(0xFF1E3C72), Color(0xFF2A5298))) }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(6.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        MeshGradientBackground(
+                            palette = palette,
+                            trackKey = "local:downloads",
+                            continuous = true,
+                            blurRadius = 24.dp,
+                        )
+                        Icon(
+                            imageVector = BitChordIcons.Download,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(40.dp),
+                        )
+                    }
+                }
+                "local:all" -> ServiceCard(
+                    colors = listOf(Color(0xFF134E5E), Color(0xFF71B280)),
+                    trackKey = "local:all",
+                    icon = Icons.Rounded.LibraryMusic,
+                )
+                "local:cache" -> ServiceCard(
+                    colors = listOf(Color(0xFF42275A), Color(0xFF734B6D)),
+                    trackKey = "local:cache",
+                    icon = Icons.Rounded.Cached,
+                )
+                "local:webdav" -> ServiceCard(
+                    colors = listOf(Color(0xFF3A1C71), Color(0xFFD76D77)),
+                    trackKey = "local:webdav",
+                    icon = Icons.Rounded.Folder,
+                )
+                "local:smb" -> ServiceCard(
+                    colors = listOf(Color(0xFF0F2027), Color(0xFF2C5364)),
+                    trackKey = "local:smb",
+                    icon = Icons.Rounded.Storage,
+                )
+                else -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .thumbnailBorder(RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                    ) {
+                        AsyncImage(
+                            model = item.thumbnailUrl.artworkAt(CARD_ART_PX),
+                            contentDescription = null,
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
+                    }
                 }
             }
-            "local:all" -> ServiceCard(
-                colors = listOf(Color(0xFF134E5E), Color(0xFF71B280)),
-                trackKey = "local:all",
-                icon = Icons.Rounded.LibraryMusic,
-            )
-            "local:cache" -> ServiceCard(
-                colors = listOf(Color(0xFF42275A), Color(0xFF734B6D)),
-                trackKey = "local:cache",
-                icon = Icons.Rounded.Cached,
-            )
-            "local:webdav" -> ServiceCard(
-                colors = listOf(Color(0xFF3A1C71), Color(0xFFD76D77)),
-                trackKey = "local:webdav",
-                icon = Icons.Rounded.Folder,
-            )
-            "local:smb" -> ServiceCard(
-                colors = listOf(Color(0xFF0F2027), Color(0xFF2C5364)),
-                trackKey = "local:smb",
-                icon = Icons.Rounded.Storage,
-            )
-            else -> {
+            if ((hovered || isCurrent) && item.videoId != null) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .thumbnailBorder(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    Modifier.align(Alignment.BottomEnd).padding(8.dp)
+                        .size(42.dp).clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable(onClick = onClick),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    AsyncImage(
-                        model = item.thumbnailUrl.artworkAt(CARD_ART_PX),
-                        contentDescription = null,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
+                    Icon(
+                        Icons.Rounded.PlayArrow,
+                        stringResource(Res.string.play),
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(28.dp),
                     )
-                    if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
                 }
             }
         }

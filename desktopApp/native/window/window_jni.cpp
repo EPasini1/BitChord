@@ -4,10 +4,11 @@
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <initguid.h>
 #include <audioclient.h>
 #include <dwmapi.h>
-#include <functiondiscoverykeys_devpkey.h>
 #include <mmdeviceapi.h>
+#include <functiondiscoverykeys_devpkey.h>
 #include <propvarutil.h>
 #include <windowsx.h>
 

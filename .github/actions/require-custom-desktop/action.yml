@@ -1,0 +1,18 @@
+name: Require customized desktop
+description: Refuse synchronization or releases without the custom desktop and regression tests.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        for file in \
+          desktopApp/src/main/kotlin/com/music/bitchord/desktop/DesktopShell.kt \
+          desktopApp/src/test/kotlin/com/music/bitchord/desktop/DesktopShellTest.kt \
+          desktopApp/src/test/kotlin/com/music/bitchord/desktop/DesktopUpdateCheckerTest.kt
+        do
+          if [ ! -f "$file" ]; then
+            echo "::error::Publish the customized desktop and its regression tests first. Missing: $file"
+            exit 1
+          fi
+        done

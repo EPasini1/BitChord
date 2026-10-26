@@ -28,7 +28,7 @@ internal object DesktopAppearanceSettings {
     /** Removes the volume slider from the main player. */
     val hideVolumeBar: StateFlow<Boolean> = _hideVolumeBar
 
-    /** Diffuses current artwork colors under the window glass chrome like Apple Music. */
+    /** Diffuses current artwork colors behind the page. */
     val ambientBackdrop: StateFlow<Boolean> = _ambientBackdrop
 
     fun setReduceAnimation(value: Boolean) = write(KEY_REDUCE_ANIMATION, value, _reduceAnimation)

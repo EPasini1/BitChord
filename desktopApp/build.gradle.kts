@@ -26,7 +26,7 @@ val isArm64 = hostArch == "aarch64" || hostArch == "arm64"
 // Windows installer metadata requires MAJOR.MINOR.BUILD even though the app's public version is
 // intentionally displayed without a patch number (1.7 rather than 1.7.0).
 // The build number is the desktop version code; it also keeps "-beta1" out of the numeric installer version.
-val desktopVersionCode = 29
+val desktopVersionCode = 30
 val nativePackageVersion = appVersion.substringBefore('-').split('.').take(2).joinToString(".") + ".$desktopVersionCode"
 
 // FFmpeg decodes audio; see DesktopAudioDecoder.
@@ -144,6 +144,7 @@ dependencies {
     implementation("org.graalvm.js:js-language:24.1.2")
 
     testImplementation(kotlin("test"))
+    testImplementation("io.ktor:ktor-client-mock:3.0.3")
 }
 
 tasks.withType<Test> {

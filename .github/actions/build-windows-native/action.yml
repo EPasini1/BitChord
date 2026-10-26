@@ -1,0 +1,21 @@
+name: Build Windows natives
+description: Build the analyser, SMTC and window bridge with the Windows SDK through MSVC.
+
+runs:
+  using: composite
+  steps:
+    - uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Build native libraries
+      shell: pwsh
+      run: |
+        $targets = @(
+          @{ Source = 'desktopApp\native'; Output = 'desktopApp\build\native\windows' },
+          @{ Source = 'desktopApp\native\window'; Output = 'desktopApp\build\native-window\windows' }
+        )
+        foreach ($target in $targets) {
+          cmake --fresh -S $target.Source -B $target.Output -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl
+          if ($LASTEXITCODE -ne 0) { throw "Native configure failed: $($target.Source)" }
+          cmake --build $target.Output --config Release --parallel 4
+          if ($LASTEXITCODE -ne 0) { throw "Native build failed: $($target.Source)" }
+        }

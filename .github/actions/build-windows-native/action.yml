@@ -19,3 +19,9 @@ runs:
           cmake --build $target.Output --config Release --parallel 4
           if ($LASTEXITCODE -ne 0) { throw "Native build failed: $($target.Source)" }
         }
+
+    - name: Test Windows audio recovery
+      shell: pwsh
+      run: |
+        ctest --test-dir desktopApp\build\native-window\windows --output-on-failure --no-tests=error
+        if ($LASTEXITCODE -ne 0) { throw "Windows audio recovery tests failed" }

@@ -19,6 +19,11 @@ filters, and sliders share the red/pink accent used for currently-playing tracks
   audio output, lyrics, and queue.
 - Dark content panels and hover-to-play shelf cards in BitChord's own colors.
 
+On Windows, window controls sit on the right in minimize, maximize/restore, close
+order, with standard caption glyphs and a red close-button hover. This applies
+both with a separate title bar and with controls embedded in the header. macOS
+keeps its left-hand traffic lights, and Linux keeps system window decorations.
+
 Below 980 dp wide, the sidebar becomes a compact navigation row above the player.
 The search field and player remain available, and page content scrolls above them
 instead of underneath them. The appearance settings, including system backdrops
@@ -102,9 +107,18 @@ the native libraries from the packages.
 ### UI regression tests
 
 `DesktopShellTest` renders the actual Compose components offscreen, checks
-contrast and normal/compact layouts, and exercises search, transport controls,
+contrast and normal/compact/maximized layouts, and exercises search, transport controls,
 seeking, muting, hover-to-play, and update-dialog actions and release-note
 formatting without signing in or streaming music.
+
+Transport centering is checked within one physical pixel across 900-3440 dp
+window widths at 100%, 125%, and 150% scale, with the volume slider both shown
+and hidden. Tests also cover Full HD/QHD work areas, long track metadata, and
+repeated maximize/restore/compact transitions without recreating the composition.
+The transport uses equally weighted side regions so the fixed-size volume
+controls cannot shift the playback buttons as the window grows.
+Caption tests cover both title-bar modes at multiple widths and display scales,
+including button order, hit targets, and minimize/maximize/restore/close actions.
 
 ```bat
 gradlew.bat :desktopApp:test --tests "com.music.bitchord.desktop.DesktopShellTest"
@@ -112,6 +126,28 @@ gradlew.bat :desktopApp:test --tests "com.music.bitchord.desktop.DesktopShellTes
 
 Rendered previews use test data with placeholder artwork and are written to
 `desktopApp/build/reports/desktop-ui`.
+
+### Windows audio recovery tests
+
+Changing Windows Sonic or other endpoint processing can invalidate a WASAPI
+session without changing the output device's identity. The native sink reopens
+that session instead of reusing the invalid client. Recovery is limited to three
+attempts per block; a persistent failure releases the audio lock, paces dropped
+frames in real time, and is reported in the desktop log.
+
+The native regression suite uses simulated COM audio endpoints, not the user's
+headset. It covers invalidation during padding, buffer acquisition and buffer
+submission, resource invalidation, bounded retries, partial writes, playhead
+continuity, failed initialization, normal device changes, and paused streams.
+Windows CI runs it before desktop validation and packaging.
+
+From an MSVC x64 developer prompt with Java 21 selected:
+
+```bat
+cmake -S desktopApp\native\window -B desktopApp\build\native-window\windows -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl -DBUILD_TESTING=ON
+cmake --build desktopApp\build\native-window\windows --config Release
+ctest --test-dir desktopApp\build\native-window\windows --output-on-failure --no-tests=error
+```
 
 ## Running from source
 

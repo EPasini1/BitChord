@@ -338,6 +338,7 @@ std::atomic<bool> g_audio_reroute{false};
 IMMDeviceEnumerator* g_audio_enumerator = nullptr;
 bool g_audio_watching = false;
 JavaVM* g_vm = nullptr;
+constexpr unsigned MAX_AUDIO_RECOVERY_ATTEMPTS = 3;
 
 class ComScope {
 public:
@@ -606,6 +607,7 @@ bool start_client_locked(IMMDevice* device) {
     }
     g_audio_endpoint_id = endpoint_id(device);
     g_audio_device_name = property_string(device, PKEY_Device_FriendlyName);
+    g_audio_error.clear();
     return true;
 }
 
@@ -626,11 +628,12 @@ void remember_played_and_reset_locked() {
  * Moves the stream to wherever the request resolves now. What was queued on the old endpoint is
  * dropped — a fifth of a second at most — and only what was actually heard is counted as played.
  */
-void reroute_locked() {
+void reroute_locked(bool force_reopen = false) {
     g_audio_reroute = false;
     if (g_audio_channels == 0) return;
     IMMDevice* device = resolve_device_locked(g_audio_wanted);
-    if (device != nullptr && g_audio_client != nullptr && endpoint_id(device) == g_audio_endpoint_id) {
+    if (!force_reopen && device != nullptr && g_audio_client != nullptr &&
+        endpoint_id(device) == g_audio_endpoint_id) {
         device->Release();
         return;
     }
@@ -684,6 +687,17 @@ int write_audio(const float* samples, int sample_count, float gain) {
 
     const UINT32 total_frames = static_cast<UINT32>(sample_count) / g_audio_channels;
     UINT32 frame_at = 0;
+    unsigned recovery_attempts = 0;
+    const auto recover = [&](HRESULT status) {
+        if (status != AUDCLNT_E_DEVICE_INVALIDATED && status != AUDCLNT_E_RESOURCES_INVALIDATED) {
+            return false;
+        }
+        if (recovery_attempts >= MAX_AUDIO_RECOVERY_ATTEMPTS) return false;
+        ++recovery_attempts;
+        // Spatial-sound changes invalidate the client without changing the endpoint's identity.
+        reroute_locked(true);
+        return true;
+    };
     while (frame_at < total_frames) {
         if (g_audio_reroute || g_audio_client == nullptr) reroute_locked();
         if (g_audio_client == nullptr) {
@@ -700,11 +714,7 @@ int write_audio(const float* samples, int sample_count, float gain) {
         }
         UINT32 padding = 0;
         HRESULT status = g_audio_client->GetCurrentPadding(&padding);
-        if (status == AUDCLNT_E_DEVICE_INVALIDATED) {
-            // Unplugged between the notification and this write; move on right away.
-            g_audio_reroute = true;
-            continue;
-        }
+        if (recover(status)) continue;
         if (FAILED(status)) {
             set_audio_error(L"Reading WASAPI buffer state", status);
             break;
@@ -719,10 +729,7 @@ int write_audio(const float* samples, int sample_count, float gain) {
         const UINT32 frames = std::min(available, total_frames - frame_at);
         BYTE* target = nullptr;
         status = g_audio_render->GetBuffer(frames, &target);
-        if (status == AUDCLNT_E_DEVICE_INVALIDATED) {
-            g_audio_reroute = true;
-            continue;
-        }
+        if (recover(status)) continue;
         if (FAILED(status) || target == nullptr) {
             set_audio_error(L"Acquiring the WASAPI buffer", status);
             break;
@@ -748,6 +755,7 @@ int write_audio(const float* samples, int sample_count, float gain) {
             }
         }
         status = g_audio_render->ReleaseBuffer(frames, 0);
+        if (recover(status)) continue;
         if (FAILED(status)) {
             set_audio_error(L"Submitting the WASAPI buffer", status);
             break;
@@ -755,7 +763,15 @@ int write_audio(const float* samples, int sample_count, float gain) {
         frame_at += frames;
         g_audio_submitted_frames += frames;
     }
-    return static_cast<int>(frame_at * g_audio_channels * g_audio_bytes_per_sample);
+    const int written = static_cast<int>(frame_at * g_audio_channels * g_audio_bytes_per_sample);
+    if (frame_at < total_frames) {
+        const UINT32 skipped = total_frames - frame_at;
+        g_audio_played_offset += skipped;
+        const int rate = g_audio_rate > 0 ? g_audio_rate : 48'000;
+        guard.unlock();
+        Sleep(static_cast<DWORD>(std::max<uint64_t>(1, uint64_t{skipped} * 1000 / rate)));
+    }
+    return written;
 }
 
 jobjectArray list_devices(JNIEnv* env) {

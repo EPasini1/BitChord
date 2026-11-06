@@ -24,8 +24,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
@@ -43,10 +45,9 @@ import java.awt.MouseInfo
 
 /** The strip where the system's title bar would have been. */
 @Composable
-internal fun DesktopTitleBar() {
-    // Collected rather than read: [DesktopTitleBarSetting.active] is a plain call, so a composable
-    // that only asks it never learns the answer changed.
-    val enabled by DesktopTitleBarSetting.enabled.collectAsState()
+internal fun DesktopTitleBar(
+    enabled: Boolean = DesktopTitleBarSetting.enabled.collectAsState().value,
+) {
     if (!DesktopPlatform.drawsOwnWindowFrame || !enabled) return
     DesktopTitleBarDragArea(
         Modifier
@@ -55,7 +56,9 @@ internal fun DesktopTitleBar() {
             .desktopWindowGlass(),
     ) {
         Box(Modifier.fillMaxSize()) {
-            DesktopWindowButtons(Modifier.align(Alignment.CenterStart))
+            DesktopWindowButtons(
+                Modifier.align(if (DesktopPlatform.isWindows) Alignment.CenterEnd else Alignment.CenterStart),
+            )
         }
     }
 }
@@ -120,12 +123,56 @@ internal fun DesktopWindowButtons(modifier: Modifier = Modifier) {
     val isFocused = windowInfo.isWindowFocused
     val inactiveFill = if (!isFocused && DesktopPlatform.isMac) Color.White.copy(alpha = 0.22f) else null
 
+    if (DesktopPlatform.isWindows) {
+        Row(modifier.height(CAPTION_HEIGHT)) {
+            CaptionButton(
+                DesktopStrings["d_minimize_window", "Minimize window"],
+                WINDOWS_HOVER,
+                onClick = actions.minimize,
+            ) { glyph ->
+                val half = 5.dp.toPx()
+                drawLine(glyph, Offset(center.x - half, center.y), Offset(center.x + half, center.y), 1.dp.toPx())
+            }
+            CaptionButton(
+                if (maximized) DesktopStrings["d_restore_window", "Restore window"]
+                else DesktopStrings["d_maximize_window", "Maximize window"],
+                WINDOWS_HOVER,
+                onClick = actions.toggleMaximize,
+            ) { glyph ->
+                val half = 5.dp.toPx()
+                val overlap = if (maximized) 2.dp.toPx() else 0f
+                val line = 1.dp.toPx()
+                if (maximized) {
+                    drawLine(glyph, Offset(center.x - half + overlap, center.y - half), Offset(center.x + half, center.y - half), line)
+                    drawLine(glyph, Offset(center.x + half, center.y - half), Offset(center.x + half, center.y + half - overlap), line)
+                }
+                drawRect(
+                    glyph,
+                    topLeft = Offset(center.x - half, center.y - half + overlap),
+                    size = Size(half * 2 - overlap, half * 2 - overlap),
+                    style = Stroke(line),
+                )
+            }
+            CaptionButton(
+                DesktopStrings["d_close_window", "Close window"],
+                WINDOWS_CLOSE_HOVER,
+                onClick = actions.close,
+            ) { glyph ->
+                val half = 5.dp.toPx()
+                val line = 1.dp.toPx()
+                drawLine(glyph, Offset(center.x - half, center.y - half), Offset(center.x + half, center.y + half), line)
+                drawLine(glyph, Offset(center.x + half, center.y - half), Offset(center.x - half, center.y + half), line)
+            }
+        }
+        return
+    }
+
     Row(
         modifier = modifier.height(CAPTION_HEIGHT).padding(start = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(0.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        MacCaptionButton("Close", MAC_CLOSE, onClick = actions.close, inactiveFill = inactiveFill) { glyph ->
+        CaptionButton(DesktopStrings["d_close_window", "Close window"], MAC_CLOSE, onClick = actions.close, inactiveFill = inactiveFill) { glyph ->
             val reach = GLYPH_HALF.toPx()
             val line = HAIRLINE.toPx()
             drawLine(
@@ -143,7 +190,7 @@ internal fun DesktopWindowButtons(modifier: Modifier = Modifier) {
                 cap = StrokeCap.Round,
             )
         }
-        MacCaptionButton("Minimize", MAC_MINIMIZE, onClick = actions.minimize, inactiveFill = inactiveFill) { glyph ->
+        CaptionButton(DesktopStrings["d_minimize_window", "Minimize window"], MAC_MINIMIZE, onClick = actions.minimize, inactiveFill = inactiveFill) { glyph ->
             drawLine(
                 color = glyph,
                 start = Offset(center.x - GLYPH_HALF.toPx(), center.y),
@@ -152,8 +199,9 @@ internal fun DesktopWindowButtons(modifier: Modifier = Modifier) {
                 cap = StrokeCap.Round,
             )
         }
-        MacCaptionButton(
-            if (maximized) "Restore" else "Maximize",
+        CaptionButton(
+            if (maximized) DesktopStrings["d_restore_window", "Restore window"]
+            else DesktopStrings["d_maximize_window", "Maximize window"],
             MAC_MAXIMIZE,
             onClick = actions.toggleMaximize,
             inactiveFill = inactiveFill,
@@ -172,7 +220,7 @@ internal fun DesktopWindowButtons(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MacCaptionButton(
+private fun CaptionButton(
     label: String,
     fill: Color,
     onClick: () -> Unit,
@@ -182,9 +230,13 @@ private fun MacCaptionButton(
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
     val buttonColor = if (inactiveFill != null && !hovered) inactiveFill else fill
+    val macStyle = DesktopPlatform.isMac
     Box(
         Modifier
-            .size(CAPTION_TOUCH_SIZE)
+            .size(
+                width = if (macStyle) CAPTION_TOUCH_SIZE else 46.dp,
+                height = if (macStyle) CAPTION_TOUCH_SIZE else CAPTION_HEIGHT,
+            )
             .hoverable(interaction)
             // The arrow, not the hand: this is window furniture, and the pointer says so before the
             // click does.
@@ -196,8 +248,13 @@ private fun MacCaptionButton(
             )
             .semantics { contentDescription = label }
             .drawBehind {
-                drawCircle(buttonColor, radius = MAC_DOT_RADIUS.toPx())
-                if (hovered) glyph(MAC_GLYPH)
+                if (macStyle) {
+                    drawCircle(buttonColor, radius = MAC_DOT_RADIUS.toPx())
+                    if (hovered) glyph(MAC_GLYPH)
+                } else {
+                    if (hovered) drawRect(fill)
+                    glyph(Color.White)
+                }
             },
         contentAlignment = Alignment.Center,
     ) {}
@@ -208,7 +265,7 @@ private fun MacCaptionButton(
  * rather than the application's.
  */
 private val CAPTION_TOUCH_SIZE = 22.dp
-private val CAPTION_HEIGHT = 24.dp
+private val CAPTION_HEIGHT = if (DesktopPlatform.isWindows) 32.dp else 24.dp
 private val MAC_DOT_RADIUS = 6.dp
 
 /** Half the width of a glyph, and the weight every one of them is drawn at. */
@@ -219,6 +276,8 @@ private val MAC_CLOSE = Color(0xFFFF5F57)
 private val MAC_MINIMIZE = Color(0xFFFFBD2E)
 private val MAC_MAXIMIZE = Color(0xFF28C840)
 private val MAC_GLYPH = Color(0xB3000000)
+private val WINDOWS_HOVER = Color.White.copy(alpha = 0.12f)
+private val WINDOWS_CLOSE_HOVER = Color(0xFFE81123)
 
 /**
  * A press on empty caption: moves the window, and a second one in quick succession maximizes it,

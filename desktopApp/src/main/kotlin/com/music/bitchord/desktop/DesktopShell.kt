@@ -76,6 +76,7 @@ internal fun DesktopHeader(
     onOpenAccounts: () -> Unit,
     canGoBack: Boolean,
     onBack: () -> Unit,
+    titleBarEnabled: Boolean = DesktopTitleBarSetting.enabled.collectAsState().value,
 ) {
     val focusRequester = remember { FocusRequester() }
     var focused by remember { mutableStateOf(false) }
@@ -96,14 +97,13 @@ internal fun DesktopHeader(
             restoreFocus = false
         }
     }
-    val titleBarEnabled by DesktopTitleBarSetting.enabled.collectAsState()
     DesktopTitleBarDragArea(Modifier.fillMaxWidth().height(64.dp).desktopWindowGlass()) {
         Row(
             Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (DesktopPlatform.drawsOwnWindowFrame && !titleBarEnabled) {
+            if (DesktopPlatform.isMac && !titleBarEnabled) {
                 DesktopWindowButtons()
             }
             Row(
@@ -140,6 +140,9 @@ internal fun DesktopHeader(
             )
             Spacer(Modifier.width(8.dp))
             DesktopAccountButton(accountAvatar, onOpenAccounts)
+            if (DesktopPlatform.isWindows && !titleBarEnabled) {
+                DesktopWindowButtons()
+            }
         }
     }
 }
@@ -171,8 +174,8 @@ internal fun DesktopPlaybackBar(
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
     sidePanel: DesktopSidePanel?,
+    hideVolume: Boolean = DesktopAppearanceSettings.hideVolumeBar.collectAsState().value,
 ) {
-    val hideVolume by DesktopAppearanceSettings.hideVolumeBar.collectAsState()
     var seekFraction by remember(song?.videoId) { mutableStateOf<Float?>(null) }
     var unmutedVolume by remember { mutableFloatStateOf(1f) }
     LaunchedEffect(volume) {
@@ -306,28 +309,31 @@ internal fun DesktopPlaybackBar(
                 Text(formatTime(durationMs), color = DesktopSecondary, style = MaterialTheme.typography.labelSmall)
             }
         }
-        Row(
-            Modifier.width(if (hideVolume) 128.dp else if (compact) 196.dp else 236.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            PlaybackButton(BitChordIcons.LyricsQuote, DesktopStrings["lyrics", "Lyrics"], onOpenLyrics, song != null, sidePanel == DesktopSidePanel.LYRICS)
-            PlaybackButton(BitChordIcons.Queue, DesktopStrings["queue", "Queue"], onOpenQueue, song != null, sidePanel == DesktopSidePanel.QUEUE)
-            PlaybackButton(Icons.Rounded.Headphones, DesktopStrings["audio_output", "Audio output"], onOpenAudioOutput)
-            PlaybackButton(
-                if (volume == 0f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
-                DesktopStrings["d_volume", "Volume"],
-                { onVolumeChange(if (volume > 0f) 0f else unmutedVolume) },
-            )
-            if (!hideVolume) {
-                Slider(
-                    value = volume.coerceIn(0f, 1f),
-                    onValueChange = onVolumeChange,
-                    colors = SliderDefaults.colors(activeTrackColor = DesktopAccent, inactiveTrackColor = DesktopDivider),
-                    thumb = { SliderThumb() },
-                    track = { PlaybackTrack(it) },
-                    modifier = Modifier.weight(1f).height(22.dp)
-                        .semantics { contentDescription = DesktopStrings["d_volume", "Volume"] },
+        // Match the track area's weight so resizing cannot push the transport off-center.
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            Row(
+                Modifier.width(if (hideVolume) 128.dp else if (compact) 196.dp else 236.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                PlaybackButton(BitChordIcons.LyricsQuote, DesktopStrings["lyrics", "Lyrics"], onOpenLyrics, song != null, sidePanel == DesktopSidePanel.LYRICS)
+                PlaybackButton(BitChordIcons.Queue, DesktopStrings["queue", "Queue"], onOpenQueue, song != null, sidePanel == DesktopSidePanel.QUEUE)
+                PlaybackButton(Icons.Rounded.Headphones, DesktopStrings["audio_output", "Audio output"], onOpenAudioOutput)
+                PlaybackButton(
+                    if (volume == 0f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
+                    DesktopStrings["d_volume", "Volume"],
+                    { onVolumeChange(if (volume > 0f) 0f else unmutedVolume) },
                 )
+                if (!hideVolume) {
+                    Slider(
+                        value = volume.coerceIn(0f, 1f),
+                        onValueChange = onVolumeChange,
+                        colors = SliderDefaults.colors(activeTrackColor = DesktopAccent, inactiveTrackColor = DesktopDivider),
+                        thumb = { SliderThumb() },
+                        track = { PlaybackTrack(it) },
+                        modifier = Modifier.weight(1f).height(22.dp)
+                            .semantics { contentDescription = DesktopStrings["d_volume", "Volume"] },
+                    )
+                }
             }
         }
     }

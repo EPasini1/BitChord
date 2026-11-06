@@ -10,6 +10,8 @@ package com.music.bitchord.desktop
  */
 internal object DesktopWindowsAudio {
 
+    private var lastReportedError: String? = null
+
     private val available: Boolean by lazy {
         DesktopPlatform.isWindows &&
             runCatching { DesktopAnalysisRuntime.loadNative(LIBRARY) }
@@ -27,11 +29,20 @@ internal object DesktopWindowsAudio {
             format.isFloat,
         )
         check(bytes > 0) { nativeLastError().ifBlank { "WASAPI could not open the audio endpoint" } }
+        lastReportedError = null
         bytes
     }
 
-    fun write(samples: FloatArray, count: Int, gain: Float): Int =
-        if (available) nativeWrite(samples, count, gain) else 0
+    fun write(samples: FloatArray, count: Int, gain: Float): Int {
+        if (!available) return 0
+        val written = nativeWrite(samples, count, gain)
+        val error = nativeLastError().takeIf { it.isNotBlank() }
+        if (error != lastReportedError) {
+            if (error != null) DesktopTrackLog.log("WASAPI output: $error")
+            lastReportedError = error
+        }
+        return written
+    }
 
     fun framesPlayed(): Long = if (available) nativeFramesPlayed() else 0L
 

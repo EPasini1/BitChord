@@ -16,6 +16,7 @@
     <string name="d_choose_something_to_play">Scegli qualcosa da ascoltare</string>
     <string name="d_close_player">Chiudi il player</string>
     <string name="d_close_up_next">Chiudi In coda</string>
+    <string name="d_close_window">Chiudi finestra</string>
     <string name="d_closing_the_window_leaves_bitchord_in_the_tray_instead_o">Chiudendo la finestra BitChord resta nell\'area di notifica invece di uscire</string>
     <string name="d_continue_playing">Continua ad ascoltare</string>
     <string name="d_custom_module">Modulo personalizzato</string>
@@ -35,6 +36,8 @@
     <string name="d_lyrics_aren_t_available_for_this_song">Il testo non è disponibile per questo brano</string>
     <string name="d_lyrics_available_click_to_view">Testo disponibile • Fai clic per vederlo</string>
     <string name="d_lyrics_unavailable">Testo non disponibile</string>
+    <string name="d_maximize_window">Ingrandisci finestra</string>
+    <string name="d_minimize_window">Riduci a icona la finestra</string>
     <string name="d_mix_the_order_of_the_current_queue">Mescola l\'ordine della coda attuale</string>
     <string name="d_module_source">Sorgente dei moduli</string>
     <string name="d_music">MUSICA</string>
@@ -56,6 +59,7 @@
     <string name="d_recents">Recenti</string>
     <string name="d_remove_from_playlist">Rimuovi dalla playlist</string>
     <string name="d_repeat">Ripeti</string>
+    <string name="d_restore_window">Ripristina finestra</string>
     <string name="d_scroll_left">Scorri a sinistra</string>
     <string name="d_scroll_right">Scorri a destra</string>
     <string name="d_search_your_music">Cerca nella tua musica</string>

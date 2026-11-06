@@ -16,6 +16,7 @@
     <string name="d_choose_something_to_play">सुनने के लिए कुछ चुनें</string>
     <string name="d_close_player">प्लेयर बंद करें</string>
     <string name="d_close_up_next">अगला बंद करें</string>
+    <string name="d_close_window">विंडो बंद करें</string>
     <string name="d_closing_the_window_leaves_bitchord_in_the_tray_instead_o">विंडो बंद करने पर BitChord बंद होने के बजाय ट्रे में रहता है</string>
     <string name="d_continue_playing">सुनना जारी रखें</string>
     <string name="d_custom_module">कस्टम मॉड्यूल</string>
@@ -35,6 +36,8 @@
     <string name="d_lyrics_aren_t_available_for_this_song">इस गाने के बोल उपलब्ध नहीं हैं</string>
     <string name="d_lyrics_available_click_to_view">बोल उपलब्ध • देखने के लिए क्लिक करें</string>
     <string name="d_lyrics_unavailable">बोल उपलब्ध नहीं</string>
+    <string name="d_maximize_window">विंडो बड़ी करें</string>
+    <string name="d_minimize_window">विंडो छोटी करें</string>
     <string name="d_mix_the_order_of_the_current_queue">मौजूदा कतार का क्रम मिलाएँ</string>
     <string name="d_module_source">मॉड्यूल स्रोत</string>
     <string name="d_music">संगीत</string>
@@ -56,6 +59,7 @@
     <string name="d_recents">हाल के</string>
     <string name="d_remove_from_playlist">प्लेलिस्ट से हटाएँ</string>
     <string name="d_repeat">दोहराएँ</string>
+    <string name="d_restore_window">विंडो का आकार बहाल करें</string>
     <string name="d_scroll_left">बाएँ स्क्रॉल करें</string>
     <string name="d_scroll_right">दाएँ स्क्रॉल करें</string>
     <string name="d_search_your_music">अपना संगीत खोजें</string>
